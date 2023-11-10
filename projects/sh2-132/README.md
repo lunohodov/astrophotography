@@ -49,17 +49,6 @@ number of stars.
 
 Rejected all subframes with less than 5000 stars.
 
-Open ImageIntegration. 
-
-./2023-08-17: LIGHTS, FLATS
-./2023-08-18: LIGHTS,
-./2023-08-19: LIGHTS, FLATS
-./2023-08-28: LIGHTS, FLATS
-./2023-09-09: LIGHTS, FLATS, DARKFLATS
-./2023-10-14: LIGHTS, FLATS
-
-
-
 ## Image Processing
 
 All processing is done in [PixInsight](https://pixinsight.com) with final touches in [Acorn](https://flyingmeat.com/acorn/).
