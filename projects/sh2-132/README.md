@@ -183,5 +183,5 @@ Curves and Levels to the image.
 
 # Final Image
 
-![FinalImage](./media/Sh2-132 Lion Nebula.jpeg?raw=true)
+![FinalImage](./media/Sh2-132.jpeg?raw=true)
 
