@@ -1,9 +1,9 @@
 # My Journey Into Astrophotography
 
-Here I share my images and the learnings I have made on this journey
-into the realm of Astrophotography.
+Here I share images and learnings I have made on my journey
+into Astrophotography.
 
-I am by no means expert and still have much to learn. Bear with me.
+Bear with me.
 
 
 ## Imaging Projects
