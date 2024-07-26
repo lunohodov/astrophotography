@@ -21,14 +21,11 @@ Camera Specification:
 
 Light Frames:
 
-- 44x 180 seconds, bin 1x1, Astronomik H-alpha 6nm, at -10°C (excluding 32x discarded)
-- 86x 180 seconds, bin 1x1, Astronomik OII 6nm, at -10°C
+- 171x 180 seconds, bin 1x1, Astronomik H-alpha 6nm, at -10°C
+- 190x 180 seconds, bin 1x1, Astronomik OII 6nm, at -10°C
+- 132x 300 seconds, bin 1x1, Astronomik SII 6nm, at -10°C
 
-Total integration time is 6 hours and 30 minutes.
-
-Calibration Frames:
-- 26x Flats per filter
-- 26x Flat-Darks per filter
+Total integration time is 29 hours and 3 minutes.
 
 ## Image Processing Walkthrough
 
@@ -36,13 +33,12 @@ All processing is done in [PixInsight](https://pixinsight.com) with final touche
 
 ### 1. Analyzing the Data
 
-First, I screened all light and calibration frames in *Blink*. There, I saw a couple of minor issues caused by wind gusts. But what troubled me more was that the subframes of a certain imaging session looked “milky”.
+First, I screened all light and calibration frames in *Blink*. There were minor issues caused by wind gusts but what troubled me more was that the subframes of an entire H-alpha imaging session looked “milky”.
 
-Then I opened *SubframeSelector*, specified camera and image scale, and after ensuring my star detection parameters were reasonable, I measured the subframes.
+I opened *SubframeSelector*, specified camera and image scale. After ensuring my star detection parameters were reasonable, I measured the subframes.
 
-Unfortunately, the “milky” images had notably less stars (500 vs. 2000 on average). I suspect the cause to be poor transparency, thin clouds, light pollution, or a combination of all. As a result, I discarded the whole session. An hour and a half of Hɑ data went to waste.
+It turned out the “milky” images had notably less stars (500 vs. 2000 on average). I suspect the cause to be poor transparency, thin clouds, light pollution, or a combination of all. As a result, I discarded an hour and a half of H-alpha data.
 
-Last, I chose the best subframe for each filter and appended `_best` to its filename. This way I can use them as a reference if I need to troubleshoot something later.
 
 ### 2. Weighted Batch Preprocessing Script 2.7.3
 
@@ -52,38 +48,76 @@ Last, I chose the best subframe for each filter and appended `_best` to its file
 4. Load all darks, including flat-darks
 5. Load the bias
 6. Select maximum quality
-7. Use *CosmeticCorrection* based on darks
-8. No *Drizzle*
+7. Use *CosmeticCorrection* with Autodetect (HotSigma=4, ColdSigma=3)
+8. Drizzle 1x, Drop Shrink 0.90, Square
 
 See [screenshots](./media/wbpp/).
 
-Total execution time: 00h:16m:29s.
+Total execution time: 01h:02m:22s.
 
 ### 3. Load Master Images
 
-Here, I loaded all master images, cloned them and renamed Hɑ to `ha`, OII to `o3`.
+I loaded all master images and cloned them. Renamed the clones to `ha`, `oii`, and `sii` respectively.
 
 ### 4. Gradient Extraction
 
-Gradients were not visible but I decided to run the *GradientCorrection* tool on each image. With trial and error I saw the defaults worked well on `ha`. However, `o3` didn’t benefit much so I skipped it.
+Gradients were not visible so I skipped gradient correction.
 
-### 5. Create HOO Image and Do Linear Processing
+### 5. Create SHO Image and Calibrate Color
 
-I used *ChannelCombination* to create a HOO image. Then, on the resulting image, I applied *BlurXTerminator* in a correct-only mode.
+I composed a Hubble Palette image with *ChannelCombination* where I put `sii`, `ha` and `oii` in the Red, Green and Blue channels respectively. The resulting image, I renamed to `sho`.
 
-Next, was *SpectrophotometricColorCalibration* in narrowband-mode. On top of that, I ran *NarrowbandNormalization* script with {BlendMode: Mode1; BlendAmount: 0.6; the rest at defaults}.
+My goal when calibrating the color was to best show the nebula’s chemical composition.
 
-Then came *NoiseXTerminator* with {Denoise: 0.5; Detail: 0.15}.
+The following tools were used:
 
-### 6. Create Starless and Stars-Only Images
+- *ColorCalibration* for intrinsic white reference
+- *BackgroundNeutralization*
+- *PixelMath* for palette polarization
 
-### 7. Starless Processing
+#### ColorCalibration
 
-### 8. Stars-Only Processing
+To optimize the visibility of the three emission bands (H-alpha, OII, and SII) within the nebula, I needed to use a white reference that is an inherent part of the image i.e. the nebula itself.
 
-### 9. Blend Starless with Stars-Only and Do Final Touches
+Hence, I picked *ColorCalibration* because it allows us specify an intrinsic white reference.
+
+However, there are a lot of stars inside the nebula and they affect the light measurement. To fix this, I used *StarXTerminator* to create a starless copy of `sho` and named it `white_reference`.
+
+Next, I applied *ColorCalibration* to `sho` with:
+
+- the white reference set to a preview in `white_reference` covering the nebula.
+- the background reference set to a preview in `sho` covering the darkest area.
+- disabled Structure Detection, although `white_reference` has no stars.
+
+#### BackgroundNeutralization
+
+*ColorCalibration*, unlike other similar processes such as *PhotometricColorCalibration* and *SpectrophotometricColorCalibration*, does not neutralize the background.
+
+To adjust the background, I applied *BackgroundNeutralization* with background reference set to a preview in `white_reference` covering the darkest area.
+
+#### PixelMath
+
+Since H-alpha (Green) is the strongest of all three emission lines, the image still has a hue towards green. To further balance the colors, I used a technique called palette polarization. This shifts the chromatic representation towards SII (Red) and OII (Blue).
+
+For that I used *PixelMath* to multiply the Red and Blue channels by a factor. However, to ensure the sky background stays neutral i.e. not turn magenta, I had to multiply the light from the objects only and exclude the background pedestal. 
+
+To calculate the pedestal, I created a new independent image from the preview used as the background reference and named it `sho_bg`.
+
+Then, I applied the following *PixelMath* to `sho`:
+
+- R/K: `($T - med(sho_bg)) * k + med(sho_bg)`
+- G: `$T`
+- B: `($T - med(sho_bg)) * k + med(sho_bg)`
+- Symbols: `k = 1.5`
+
+### 6. Deconvolution
+
+Used *BlurXTerminator* with:
+
+- Sharpen Stars: 0.10
+- Adjust Star Halos: 0.07
+- Automatic PSF enabled
+- Sharpen Nonstellar: 0.50
 
 ## Final Image
-
-![FinalImage](./media/NGC-7000-hoo_v2.jpeg?raw=true)
 
