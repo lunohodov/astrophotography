@@ -49,11 +49,12 @@ It turned out the “milky” images had notably less stars (500 vs. 2000 on ave
 5. Load the bias
 6. Select maximum quality
 7. Use *CosmeticCorrection* with Autodetect (HotSigma=4, ColdSigma=3)
-8. Drizzle 1x, Drop Shrink 0.90, Square
+8. Set an Output Pedestal of 200 (DN)
+9. Drizzle 1x, Drop Shrink 0.90, Square
 
 See [screenshots](./media/wbpp/).
 
-Total execution time: 01h:02m:22s.
+Total execution time: 01h:10m:27s.
 
 ### 3. Load Master Images
 
