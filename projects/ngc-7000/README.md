@@ -2,7 +2,7 @@
 
 ## Image Acquisition 
 
-Images are acquired in traveller-mode on a Bortle-3 site.
+I acquired the imaged in traveller-mode on a Bortle-3 site.
 
 Telescope Specification:
 
@@ -31,7 +31,7 @@ Total integration time is 29 hours and 3 minutes.
 
 All processing is done in [PixInsight](https://pixinsight.com) with final touches in [Acorn](https://flyingmeat.com/acorn/).
 
-### 1. Analyzing the Data
+### Analyzing the Data
 
 First, I screened all light and calibration frames in *Blink*. There were minor issues caused by wind gusts but what troubled me more was that the subframes of an entire H-alpha imaging session looked “milky”.
 
@@ -40,7 +40,7 @@ I opened *SubframeSelector*, specified camera and image scale. After ensuring my
 It turned out the “milky” images had notably less stars (500 vs. 2000 on average). I suspect the cause to be poor transparency, thin clouds, light pollution, or a combination of all. As a result, I discarded an hour and a half of H-alpha data.
 
 
-### 2. Weighted Batch Preprocessing Script 2.7.3
+### Weighted Batch Preprocessing Script 2.7.3
 
 1. Reset everything
 2. Load all lights
@@ -56,69 +56,53 @@ See [screenshots](./media/wbpp/).
 
 Total execution time: 01h:10m:27s.
 
-### 3. Load Master Images
+### Load Master Images
 
-I loaded all master images and cloned them. Renamed the clones to `ha`, `oiii`, and `sii` respectively.
+I loaded the master images for all channels, cloned them and renamed the clones to `ha`, `oiii`, and `sii` respectively.
 
-### 4. Gradient Extraction
+### Gradient Extraction
 
-Gradients were not visible so I skipped gradient correction.
+I skipped gradient correction because I could not see gradients.
 
-### 5. Create SHO Image and Calibrate Color
+### Separate Stars and Equalize Channels
 
-I composed a Hubble Palette image with *ChannelCombination* where I put `sii`, `ha` and `oiii` in the Red, Green and Blue channels respectively. The resulting image, I renamed to `sho`.
+I decided to separate nebulosity and stars in the linear stage and process them independently.
 
-My goal when calibrating the color was to best show the nebula’s chemical composition.
+For that I used *StarXTerminator* on each channel image where:
 
-The following tools were used:
+- Generate Star Image: checked
+- Unscreen Stars: unchecked
+- Large Overlap: unchecked
 
-- *BackgroundNeutralization*
-- *ColorCalibration* for intrinsic white reference
-- *PixelMath* for palette polarization
+I inspected the resulting images for artifacts, found none, then renamed the star images to `ha_stars`, `oiii_stars`, and `sii_stars`respectively.
 
-#### BackgroundNeutralization
+Next, I had to make the channels statistically matching. I used *LinearFit* to equalize `oiii` and `sii` to `ha`. Please note, that doing this after star removal ensures that signal from the stars will not bias the background.
 
-*ColorCalibration*, unlike *PhotometricColorCalibration* and *SpectrophotometricColorCalibration*, does not neutralize the background. So I went with this first.
+### Create Stars Color Image
 
-Initially, I used the mode `Rescale as needed` and a background reference covering the darkest area in `sho`. This maximized the dynamic range usage but resulted in less foot-room (i.e. Blacks separation).
+For the stars color image I used *PixelMath* where:
 
-In the end, I switched to `Target background` and applied with:
+- R: `h`
+- G: `h*0.7 + o*0.3`
+- B: `o`
 
-- Target background set to `0.0010000`
-- Reference image set to an aggregated image build from 4 previews of the dark areas of `sho` 
+Then I used *HistogramTransformation* to balance the colors.
 
-#### ColorCalibration
+Alternatively, one can use Seti Astro’s *NBtoRGBStarCombination*.
 
-To optimize the visibility of the three emission bands (H-alpha, OIII, and SII) within the nebula, I needed to use a white reference that is an inherent part of the image. In other words – the nebula itself.
+Finally, I applied *BlurXTerminator* with:
 
-One process to allow using an intrinsic white reference is *ColorCalibration*.
+- Sharpen Stars: 0.40
+- Adjust Star Halos: 0.00
+- Sharpen Nonstellar: 0.00
 
-However, there are a lot of stars inside the nebula and they affect the light measurement. To fix this, I used *StarXTerminator* to create a starless copy of `sho` and named it `white_reference`.
+### Create Starless SHO Color Image
 
-Then, I applied *ColorCalibration* to `sho` with:
+I composed a Hubble Palette image with *ChannelCombination* where I put `s`, `h` and `o` in the Red, Green and Blue channels respectively. The resulting image, I renamed to `sho`.
 
-- the white reference set to a preview in `white_reference` covering the nebula.
-- the background reference set to a preview in `sho` covering the darkest area.
-- disabled Structure Detection, although it’s not needed as `white_reference` has no stars.
+### Starless SHO Deconvolution
 
-#### PixelMath
-
-Since H-alpha (Green) is the strongest of all three emission lines, the image still has a hue towards green. To further balance the colors, I used a technique called palette polarization. This shifts the chromatic representation towards SII (Red) and OII (Blue).
-
-For that I used *PixelMath* to multiply the Red and Blue channels by a factor. However, to ensure the sky background stays neutral i.e. not turn magenta, I had to multiply the light from the objects only and exclude the background pedestal. 
-
-To calculate the pedestal, I created a new independent image from the preview used as the background reference and named it `sho_bg`.
-
-Then, I applied the following *PixelMath* to `sho`:
-
-- R/K: `($T - med(sho_bg)) * k + med(sho_bg)`
-- G: `$T`
-- B: `($T - med(sho_bg)) * k + med(sho_bg)`
-- Symbols: `k = 1.15`
-
-### 6. Deconvolution
-
-Used *BlurXTerminator* with:
+I  *BlurXTerminator* with:
 
 - Sharpen Stars: 0.10
 - Adjust Star Halos: 0.0
