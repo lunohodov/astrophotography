@@ -12,6 +12,7 @@ assignees: ''
 <!-- Paste a link to target on Telescopius https://telescopius.com -->
 
 - Next opposition:
+- Target plan from Telescopius (CSV)
 
 ### Integration Planning
 
