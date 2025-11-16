@@ -25,7 +25,7 @@ Light Frames:
 - 190x 180 seconds, bin 1x1, Astronomik OIII 6nm, at -10°C
 - 132x 300 seconds, bin 1x1, Astronomik SII 6nm, at -10°C
 
-Total integration time is 29 hours and 3 minutes.
+Total integration time is 31 hours and 54 minutes.
 
 ## Preprocessing
 
